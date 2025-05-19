@@ -1,0 +1,60 @@
+"""
+news2emotion.py
+  1) NewsAPI 헤드라인 수집
+  2) GoEmotions 감정 추론
+  3) JSON 출력
+환경변수:
+  NEWS_API_KEY (.env에서 로드)
+"""
+import os, json
+from datetime import datetime, timezone
+from dotenv import load_dotenv; load_dotenv()
+
+from newsapi import NewsApiClient
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+
+# ── 0. 세팅 ──────────────────────────────────────────
+NEWS_KEY = os.getenv("NEWS_API_KEY")
+newsapi  = NewsApiClient(api_key=NEWS_KEY)
+
+MODEL_ID = MODEL_ID = "SamLowe/roberta-base-go_emotions"
+
+tok = AutoTokenizer.from_pretrained(MODEL_ID)
+mdl = AutoModelForSequenceClassification.from_pretrained(MODEL_ID).eval()
+LABELS = mdl.config.id2label
+
+# ── 1. 뉴스 가져오기 ────────────────────────────────
+def fetch_latest(country = "us", page_size = 20):
+  res = newsapi.get_top_headlines(country = country, page_size = page_size)
+  for art in res["articles"]:
+    title = art["title"] or ""
+    desc = art.get("description") or ""
+    text = f"{title}. {desc}".strip()
+    if text:
+      yield text
+
+# ── 2. 감정 추론 ────────────────────────────────
+@torch.no_grad()
+def headline_emotion(text: str) -> dict:
+    inputs = tok(text, return_tensors="pt", truncation=True, max_length=64)
+    probs  = mdl(**inputs).logits.sigmoid()[0]
+    
+    top3   = torch.topk(probs, 3)
+
+    return {
+        "headline": text,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "top3": [
+            {"label": LABELS[int(idx)], "prob": round(float(p), 3)}
+            for p, idx in zip(top3.values, top3.indices)
+        ]
+    }
+
+# ── 3. 실행부 ────────────────────────────────────────
+def main(country="us", page_size=10):
+    data = [headline_emotion(text) for text in fetch_latest(country, page_size)]
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+
+if __name__ == "__main__":
+    main()

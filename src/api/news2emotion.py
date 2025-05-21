@@ -50,9 +50,11 @@ def fetch_latest(country = "us", page_size = 20):
   for art in res["articles"]:
     title = art["title"] or ""
     desc = art.get("description") or ""
+    published = art.get("publishedAt") or datetime.now(timezone.utc).isoformat()
+    
     text = f"{title}. {desc}".strip()
     if text:
-      yield text
+      yield { "text" : text , "published" : published}
 
 # ── 2. 감정 추론 ────────────────────────────────
 def sentiment_score(probs: torch.Tensor):
@@ -75,7 +77,10 @@ def sentiment_score(probs: torch.Tensor):
   
 
 @torch.no_grad()
-def headline_emotion(text: str) -> dict:
+def headline_emotion(item: dict) -> dict:
+    text = item["text"]
+    timestamp = item["published"]
+    
     inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
     probs  = mdl(**inputs).logits.sigmoid()[0]
     
@@ -98,7 +103,7 @@ def headline_emotion(text: str) -> dict:
     top3   = torch.topk(probs, 3)
     return {
         "headline": text,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": timestamp,
         "sentiment": { "label": sent_final, "confidence": conf_final },
         "top3": [
             {"label": LABELS[int(idx)], "prob": round(float(p), 3)}
@@ -107,8 +112,8 @@ def headline_emotion(text: str) -> dict:
     }
 
 # ── 3. 실행부 ────────────────────────────────────────
-def main(country="us", page_size=10):
-    data = [headline_emotion(text) for text in fetch_latest(country, page_size)]
+def main(country="us", page_size=20):
+    data = [headline_emotion(item) for item in fetch_latest(country, page_size)]
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__":

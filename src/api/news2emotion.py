@@ -18,7 +18,7 @@ import torch
 NEWS_KEY = os.getenv("NEWS_API_KEY")
 newsapi  = NewsApiClient(api_key=NEWS_KEY)
 
-MODEL_ID = MODEL_ID = "SamLowe/roberta-base-go_emotions"
+MODEL_ID = "SamLowe/roberta-base-go_emotions"
 
 tok = AutoTokenizer.from_pretrained(MODEL_ID)
 mdl = AutoModelForSequenceClassification.from_pretrained(MODEL_ID).eval()
@@ -33,10 +33,16 @@ NEG_SET = {
     "embarrassment","fear","grief","nervousness","remorse","sadness"
 }
 NEU_LABEL = "neutral"
-NEU_ID = [i for i, l in NEU_LABEL.items() if 1 == NEU_LABEL[0]]
+NEU_ID = [i for i, l in LABELS.items() if 1 == NEU_LABEL[0]]
 
 NEU_FACTOR = 0.3
 THRESH = 0.10
+
+USE_NLI = True
+ALPHA = 0.6
+
+if USE_NLI:
+  from sentiment_nli import nli_sentiment
 
 # ── 1. 뉴스 가져오기 ────────────────────────────────
 def fetch_latest(country = "us", page_size = 20):
@@ -70,16 +76,30 @@ def sentiment_score(probs: torch.Tensor):
 
 @torch.no_grad()
 def headline_emotion(text: str) -> dict:
-    inputs = tok(text, return_tensors="pt", truncation=True, max_length=64)
+    inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
     probs  = mdl(**inputs).logits.sigmoid()[0]
     
-    sent, conf = sentiment_score(probs)
+    sent_ge, conf_ge = sentiment_score(probs)
+    
+    if USE_NLI:
+      sent_nli, conf_nli, _ = nli_sentiment(text)
+      
+      if sent_ge == sent_nli:
+        sent_final = sent_ge
+        conf_final = round(ALPHA * conf_ge + (1 - ALPHA)*conf_nli, 3)
+      else:
+        if ALPHA * conf_ge >= (1 - ALPHA) * conf_nli:
+          sent_final, conf_final = sent_ge, round(ALPHA * conf_ge , 3)
+        else:
+          sent_final, conf_final = sent_nli, round((1-ALPHA)*conf_nli, 3)
+    else:
+      sent_final, conf_final = sent_ge, conf_ge
     
     top3   = torch.topk(probs, 3)
     return {
         "headline": text,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "sentiment": { "label": sent, "confidence": conf },
+        "sentiment": { "label": sent_final, "confidence": conf_final },
         "top3": [
             {"label": LABELS[int(idx)], "prob": round(float(p), 3)}
             for p, idx in zip(top3.values, top3.indices)

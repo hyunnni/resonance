@@ -35,6 +35,7 @@ NEG_SET = {
 NEU_LABEL = "neutral"
 NEU_ID = [i for i, l in NEU_LABEL.items() if 1 == NEU_LABEL[0]]
 
+NEU_FACTOR = 0.3
 THRESH = 0.10
 
 # ── 1. 뉴스 가져오기 ────────────────────────────────
@@ -51,7 +52,7 @@ def fetch_latest(country = "us", page_size = 20):
 def sentiment_score(probs: torch.Tensor):
   
   probs = probs.clone()
-  probs[NEU_ID] *= 0.
+  probs[NEU_ID] *= NEU_FACTOR
   probs = probs / probs.sum()
   
   pos = probs[[i for i, l in LABELS.items() if l in POS_SET]].sum()

@@ -24,6 +24,19 @@ tok = AutoTokenizer.from_pretrained(MODEL_ID)
 mdl = AutoModelForSequenceClassification.from_pretrained(MODEL_ID).eval()
 LABELS = mdl.config.id2label
 
+POS_SET = {
+    "admiration","amusement","approval","caring","excitement",
+    "gratitude","joy","love","optimism","pride","relief","surprise"
+}
+NEG_SET = {
+    "anger","annoyance","disappointment","disapproval","disgust",
+    "embarrassment","fear","grief","nervousness","remorse","sadness"
+}
+NEU_LABEL = "neutral"
+NEU_ID = [i for i, l in NEU_LABEL.items() if 1 == NEU_LABEL[0]]
+
+THRESH = 0.10
+
 # ── 1. 뉴스 가져오기 ────────────────────────────────
 def fetch_latest(country = "us", page_size = 20):
   res = newsapi.get_top_headlines(country = country, page_size = page_size)
@@ -35,16 +48,37 @@ def fetch_latest(country = "us", page_size = 20):
       yield text
 
 # ── 2. 감정 추론 ────────────────────────────────
+def sentiment_score(probs: torch.Tensor):
+  
+  probs = probs.clone()
+  probs[NEU_ID] *= 0.
+  probs = probs / probs.sum()
+  
+  pos = probs[[i for i, l in LABELS.items() if l in POS_SET]].sum()
+  neg = probs[[i for i, l in LABELS.items() if l in NEG_SET]].sum()
+  
+  confidence = round(float(abs(pos - neg)), 3)
+  
+  if pos > neg + THRESH:
+    return "positive", confidence
+  if neg > pos + THRESH:
+    return "negative", confidence
+  return "neutral", confidence
+  
+  
+
 @torch.no_grad()
 def headline_emotion(text: str) -> dict:
     inputs = tok(text, return_tensors="pt", truncation=True, max_length=64)
     probs  = mdl(**inputs).logits.sigmoid()[0]
     
+    sent, conf = sentiment_score(probs)
+    
     top3   = torch.topk(probs, 3)
-
     return {
         "headline": text,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "sentiment": { "label": sent, "confidence": conf },
         "top3": [
             {"label": LABELS[int(idx)], "prob": round(float(p), 3)}
             for p, idx in zip(top3.values, top3.indices)

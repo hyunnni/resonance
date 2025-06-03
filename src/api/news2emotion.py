@@ -1,11 +1,3 @@
-"""
-news2emotion.py
-  1) NewsAPI 헤드라인 수집
-  2) GoEmotions 감정 추론
-  3) JSON 출력
-환경변수:
-  NEWS_API_KEY (.env에서 로드)
-"""
 import os, json
 from datetime import datetime, timezone
 from dotenv import load_dotenv; load_dotenv()
@@ -14,7 +6,6 @@ from newsapi import NewsApiClient
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-# ── 0. 세팅 ──────────────────────────────────────────
 NEWS_KEY = os.getenv("NEWS_API_KEY")
 newsapi  = NewsApiClient(api_key=NEWS_KEY)
 
@@ -42,9 +33,9 @@ USE_NLI = True
 ALPHA = 0.6
 
 if USE_NLI:
-  from sentiment_nli import nli_sentiment
+  from .sentiment_nli import nli_sentiment
 
-# ── 1. 뉴스 가져오기 ────────────────────────────────
+# 1. 뉴스 수집
 def fetch_latest(country = "us", page_size = 20):
   res = newsapi.get_top_headlines(country = country, page_size = page_size)
   for art in res["articles"]:
@@ -56,7 +47,7 @@ def fetch_latest(country = "us", page_size = 20):
     if text:
       yield { "text" : text , "published" : published}
 
-# ── 2. 감정 추론 ────────────────────────────────
+# 2. 감정 추론
 def sentiment_score(probs: torch.Tensor):
   
   probs = probs.clone()
@@ -111,7 +102,7 @@ def headline_emotion(item: dict) -> dict:
         ]
     }
 
-# ── 3. 실행부 ────────────────────────────────────────
+# 3. 실행 
 def main(country="us", page_size=20):
     data = [headline_emotion(item) for item in fetch_latest(country, page_size)]
     print(json.dumps(data, ensure_ascii=False, indent=2))

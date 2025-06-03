@@ -1,13 +1,11 @@
 import os, json
-from datetime import datetime, timezone
 from dotenv import load_dotenv; load_dotenv()
-
-from newsapi import NewsApiClient
+from typing import List, Optional, Set
+from datetime import datetime
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-NEWS_KEY = os.getenv("NEWS_API_KEY")
-newsapi  = NewsApiClient(api_key=NEWS_KEY)
+from .fetch_gdelt import fetch_gdelt
 
 MODEL_ID = "SamLowe/roberta-base-go_emotions"
 
@@ -35,17 +33,23 @@ ALPHA = 0.6
 if USE_NLI:
   from .sentiment_nli import nli_sentiment
 
-# 1. 뉴스 수집
-def fetch_latest(country = "us", page_size = 20):
-  res = newsapi.get_top_headlines(country = country, page_size = page_size)
-  for art in res["articles"]:
-    title = art["title"] or ""
-    desc = art.get("description") or ""
-    published = art.get("publishedAt") or datetime.now(timezone.utc).isoformat()
-    
-    text = f"{title}. {desc}".strip()
-    if text:
-      yield { "text" : text , "published" : published}
+# 헤드라인 수집
+_seen : Set[str] = set()  # 중복 방지
+def fetch_latest(
+                 *,
+                 timespan: str = "1hours",
+                 num_records: int = 250,
+                 countries: Optional[List[str]] = None
+                 ):
+  
+    for art in fetch_gdelt(_seen,
+                           timespan=timespan,
+                           num_records=num_records,
+                           countries=countries):
+        yield {
+            "text": art["headline"],
+            "published": art["date"]
+        }
 
 # 2. 감정 추론
 def sentiment_score(probs: torch.Tensor):
@@ -65,12 +69,10 @@ def sentiment_score(probs: torch.Tensor):
     return "negative", confidence
   return "neutral", confidence
   
-  
-
 @torch.no_grad()
 def headline_emotion(item: dict) -> dict:
     text = item["text"]
-    timestamp = item["published"]
+    ts_iso = item["published"]
     
     inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
     probs  = mdl(**inputs).logits.sigmoid()[0]
@@ -91,21 +93,37 @@ def headline_emotion(item: dict) -> dict:
     else:
       sent_final, conf_final = sent_ge, conf_ge
     
+    ts_dt = datetime.strptime(ts_iso, "%Y%m%dT%H%M%SZ")
+    ts_txt = ts_dt.strftime("%Y-%m-%d %H:%M UTC")
+    
     top3   = torch.topk(probs, 3)
     return {
         "headline": text,
-        "timestamp": timestamp,
-        "sentiment": { "label": sent_final, "confidence": conf_final },
-        "top3": [
-            {"label": LABELS[int(idx)], "prob": round(float(p), 3)}
+        "timestamp": ts_txt,
+        "sentiment": {
+                      "label": sent_final, 
+                      "confidence": conf_final 
+                      },
+        "top3": {
+            LABELS[int(idx)]: round(float(p), 3)
             for p, idx in zip(top3.values, top3.indices)
-        ]
+        }
     }
 
 # 3. 실행 
-def main(country="us", page_size=20):
-    data = [headline_emotion(item) for item in fetch_latest(country, page_size)]
-    print(json.dumps(data, ensure_ascii=False, indent=2))
+def main():
+    rows = [headline_emotion(it) for it in fetch_latest(
+                timespan="1hours", num_records=50,
+                countries=["US","UK","KS","KN"])]
+
+    
+    # print(json.dumps(rows, ensure_ascii=False, indent=2))
+
+    for row in rows:
+        top3 = ', '.join(f'{k}:{v}' for k, v in row['top3'].items())
+        print(f"[{row['timestamp']}] {row['sentiment']['label']}"
+              f"({row['sentiment']['confidence']}) – {row['headline']}")
+        print(f"   ↳ {top3}\n")
 
 if __name__ == "__main__":
     main()

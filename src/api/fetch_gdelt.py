@@ -18,8 +18,14 @@ def fetch_gdelt(
     num_records: int = 250,
     countries: list[str] | None = None,
 ) -> List[Dict[str, Any]]:
-    filt = Filters(timespan=timespan, num_records=num_records,
-                   country=countries or [])
+    country_filter = " OR ".join(countries) if countries else ""
+    
+    filt = Filters(
+        timespan=timespan,
+        num_records=num_records,
+        country=country_filter
+    )
+    
     try:
         df: pd.DataFrame = GDOC.article_search(filt)
     except Exception as exc:
@@ -39,11 +45,13 @@ def fetch_gdelt(
         
         date = str(row.get("seendate") or "")
         headline = str(row.get("title") or "").strip()
+        source_country = str(row.get("sourcecountry"))
         if len(headline) < MIN_LEN:
             continue
         
         fresh.append({
             "url": url,
+            "source_country" : source_country,
             "headline": headline,
             "date" : date
         })

@@ -1,6 +1,6 @@
 import os, json
 from dotenv import load_dotenv; load_dotenv()
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple, Dict, Any
 from datetime import datetime
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
@@ -40,16 +40,30 @@ def fetch_latest(
                  timespan: str = "1hours",
                  num_records: int = 250,
                  countries: Optional[List[str]] = None
-                 ):
-  
-    for art in fetch_gdelt(_seen,
-                           timespan=timespan,
-                           num_records=num_records,
-                           countries=countries):
-        yield {
-            "text": art["headline"],
-            "published": art["date"]
-        }
+                 ) -> Tuple[List[Dict[str, Any]], int]:
+    if not countries:
+        countries = ["US","UK","KS","KN","JA","CH","GM","FR","RS","IN","BR"]
+    
+    # 국가별 고르게 뉴스 수집 
+    records_per_country = num_records // len(countries)
+    processed = []
+    total_fetched = 0
+    
+    for country in countries:
+        country_news = fetch_gdelt(_seen,
+                                timespan=timespan,
+                                num_records=records_per_country,
+                                countries=[country])
+        total_fetched += len(country_news)
+        
+        for art in country_news:
+            processed.append({
+                "text": art["headline"],
+                "source_country" : art["source_country"],
+                "published": art["date"]
+            })
+    
+    return processed, total_fetched
 
 # 2. 감정 추론
 def sentiment_score(probs: torch.Tensor):
@@ -73,6 +87,7 @@ def sentiment_score(probs: torch.Tensor):
 def headline_emotion(item: dict) -> dict:
     text = item["text"]
     ts_iso = item["published"]
+    sourcecountry = item["source_country"]
     
     inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
     probs  = mdl(**inputs).logits.sigmoid()[0]
@@ -100,30 +115,49 @@ def headline_emotion(item: dict) -> dict:
     return {
         "headline": text,
         "timestamp": ts_txt,
+        "sourcecountry" : sourcecountry,
         "sentiment": {
-                      "label": sent_final, 
-                      "confidence": conf_final 
+                      "label": sent_final,
+                      "confidence": conf_final
                       },
-        "top3": {
-            LABELS[int(idx)]: round(float(p), 3)
-            for p, idx in zip(top3.values, top3.indices)
-        }
     }
 
 # 3. 실행 
 def main():
-    rows = [headline_emotion(it) for it in fetch_latest(
-                timespan="1hours", num_records=50,
-                countries=["US","UK","KS","KN"])]
-
+    # 감정 분석 수행
+    processed_news, total_news = fetch_latest(
+                timespan="1days", num_records=250,
+                countries=["US","UK","KS","KN","JA","CH","GM","FR","RS","IN","BR"])
     
-    # print(json.dumps(rows, ensure_ascii=False, indent=2))
-
+    rows = [headline_emotion(it) for it in processed_news]
+    
+    print(f"\nTotal news articles found: {total_news}")
+    
+    # 국가별 뉴스 수 출력
+    country_counts = {}
     for row in rows:
-        top3 = ', '.join(f'{k}:{v}' for k, v in row['top3'].items())
-        print(f"[{row['timestamp']}] {row['sentiment']['label']}"
-              f"({row['sentiment']['confidence']}) – {row['headline']}")
-        print(f"   ↳ {top3}\n")
+        country = row['sourcecountry']
+        country_counts[country] = country_counts.get(country, 0) + 1
+    
+    print("\nNews count by country:")
+    for country, count in sorted(country_counts.items()):
+        print(f"{country}: {count}")
+    
+    # 터미널 출력
+    for i, row in enumerate(rows, 1):
+        print(f"[{i:02d}] [{row['timestamp']} @{row['sourcecountry']}] [{row['sentiment']['label']}"
+              f"({row['sentiment']['confidence']})] – {row['headline']}")
+
+    # JSON 파일로 저장
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"news_sentiment_{timestamp}.json"
+    
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(rows, f, ensure_ascii=False, indent=2)
+    
+    print(f"\nResults have been saved to {output_file}")
+    print(f"Number of analyzed articles: {len(rows)}")
+    print(f"Number of filtered out articles: {total_news - len(rows)}")
 
 if __name__ == "__main__":
     main()

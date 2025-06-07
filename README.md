@@ -24,16 +24,16 @@ flowchart TD
     Out["Output Formatter"]:::io
 
     %% Tests
-    Tests["Unit Tests\n(FetchGDELT)"]:::test
+    Tests["Unit Tests<br>(FetchGDELT)"]:::test
 
     %% Data flow
-    API -->|"raw headlines\n(list of dicts)"| FG
-    FG -->|"raw headlines\n(list of dicts)"| PP
-    PP -->|"filtered headlines\n(list of dicts)"| GE
-    PP -->|"filtered headlines\n(list of dicts)"| MNLI
-    GE -->|"emotion scores\n(dict)"| Comb
-    MNLI -->|"sentiment labels\n(dict)"| Comb
-    Comb -->|"enriched data\n(list of dicts)"| Out
+    API -->|"raw headlines<br>(list of dicts)"| FG
+    FG -->|"raw headlines<br>(list of dicts)"| PP
+    PP -->|"filtered headlines<br>(list of dicts)"| GE
+    PP -->|"filtered headlines<br>(list of dicts)"| MNLI
+    GE -->|"emotion scores<br>(dict)"| Comb
+    MNLI -->|"sentiment labels<br>(dict)"| Comb
+    Comb -->|"enriched data<br>(list of dicts)"| Out
 
     %% Tests
     Tests -->|"tests fetch logic"| FG
@@ -54,6 +54,7 @@ flowchart TD
     classDef ml fill:#DDA0DD,stroke:#333,stroke-width:1px,shape:round;
     classDef io fill:#F0E68C,stroke:#333,stroke-width:1px,shape:parallelogram;
     classDef test fill:#FFA07A,stroke:#333,stroke-width:1px;
+
 ```
 
 <br>

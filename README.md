@@ -12,7 +12,49 @@ GDELT(Global Database of Events, Language, and Tone)에서 뉴스 헤드라인�
 
 ## 구조
 
-![Resonance Architecture](mermaid-diagram.svg)
+```mermaid
+flowchart TD
+    %% Main flow
+    API["GDELT API"]:::cloud
+    FG["FetchGDELT Module"]:::ingest
+    PP["Preprocessing"]:::process
+    GE["GoEmotions Analyzer"]:::ml
+    MNLI["MNLI Analyzer"]:::ml
+    Comb["Combiner"]:::process
+    Out["Output Formatter"]:::io
+
+    %% Tests
+    Tests["Unit Tests\n(FetchGDELT)"]:::test
+
+    %% Data flow
+    API -->|"raw headlines\n(list of dicts)"| FG
+    FG -->|"raw headlines\n(list of dicts)"| PP
+    PP -->|"filtered headlines\n(list of dicts)"| GE
+    PP -->|"filtered headlines\n(list of dicts)"| MNLI
+    GE -->|"emotion scores\n(dict)"| Comb
+    MNLI -->|"sentiment labels\n(dict)"| Comb
+    Comb -->|"enriched data\n(list of dicts)"| Out
+
+    %% Tests
+    Tests -->|"tests fetch logic"| FG
+
+    %% Click events
+    click FG "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/fetch_gdelt.py"
+    click PP "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
+    click GE "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
+    click MNLI "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/sentiment_nli.py"
+    click Comb "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
+    click Out "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
+    click Tests "https://github.com/hyunnni/moonjar-resonance/blob/main/src/tests/fetch.py"
+
+    %% Styles
+    classDef cloud fill:#FFB6C1,stroke:#333,stroke-width:1px;
+    classDef ingest fill:#98FB98,stroke:#333,stroke-width:1px;
+    classDef process fill:#87CEFA,stroke:#333,stroke-width:1px;
+    classDef ml fill:#DDA0DD,stroke:#333,stroke-width:1px,shape:round;
+    classDef io fill:#F0E68C,stroke:#333,stroke-width:1px,shape:parallelogram;
+    classDef test fill:#FFA07A,stroke:#333,stroke-width:1px;
+```
 
 <br>
 

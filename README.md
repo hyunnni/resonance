@@ -12,50 +12,7 @@ GDELT(Global Database of Events, Language, and Tone)에서 뉴스 헤드라인�
 
 ## 구조
 
-```mermaid
-flowchart TD
-    %% Main flow
-    API["GDELT API"]:::cloud
-    FG["FetchGDELT Module"]:::ingest
-    PP["Preprocessing"]:::process
-    GE["GoEmotions Analyzer"]:::ml
-    MNLI["MNLI Analyzer"]:::ml
-    Comb["Combiner"]:::process
-    Out["Output Formatter"]:::io
-
-    %% Tests
-    Tests["Unit Tests<br>(FetchGDELT)"]:::test
-
-    %% Data flow
-    API -->|"raw headlines<br>(list of dicts)"| FG
-    FG -->|"raw headlines<br>(list of dicts)"| PP
-    PP -->|"filtered headlines<br>(list of dicts)"| GE
-    PP -->|"filtered headlines<br>(list of dicts)"| MNLI
-    GE -->|"emotion scores<br>(dict)"| Comb
-    MNLI -->|"sentiment labels<br>(dict)"| Comb
-    Comb -->|"enriched data<br>(list of dicts)"| Out
-
-    %% Tests
-    Tests -->|"tests fetch logic"| FG
-
-    %% Click events
-    click FG "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/fetch_gdelt.py"
-    click PP "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
-    click GE "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
-    click MNLI "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/sentiment_nli.py"
-    click Comb "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
-    click Out "https://github.com/hyunnni/moonjar-resonance/blob/main/src/api/news2emotion.py"
-    click Tests "https://github.com/hyunnni/moonjar-resonance/blob/main/src/tests/fetch.py"
-
-    %% Styles
-    classDef cloud fill:#FFB6C1,stroke:#333,stroke-width:1px;
-    classDef ingest fill:#98FB98,stroke:#333,stroke-width:1px;
-    classDef process fill:#87CEFA,stroke:#333,stroke-width:1px;
-    classDef ml fill:#DDA0DD,stroke:#333,stroke-width:1px,shape:round;
-    classDef io fill:#F0E68C,stroke:#333,stroke-width:1px,shape:parallelogram;
-    classDef test fill:#FFA07A,stroke:#333,stroke-width:1px;
-
-```
+![Resonance Architecture](mermaid-diagram.svg)
 
 <br>
 

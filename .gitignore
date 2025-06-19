@@ -6,3 +6,5 @@ models/
 __pycache__/
 *.py[cod]
 news_sentiment_*.json
+collected_articles.db
+*.db

@@ -5,8 +5,9 @@ from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 from .fetch_gdelt import fetch_gdelt
-from .emotion_utils import headline_emotion
+from .emotion_utils import analyze_headline_emotion
 from .db import is_new_article, save_article, get_latest_articles
+from .translation_api import translate_text
 
 # --- Config ---
 load_dotenv()
@@ -50,7 +51,7 @@ def fetch_and_process_articles(
             if not is_new_article(url):
                 continue
             try:
-                emotion = headline_emotion({
+                emotion = analyze_headline_emotion({
                     "text": art["headline"],
                     "source_country": art["source_country"],
                     "published": art["date"]
@@ -60,14 +61,19 @@ def fetch_and_process_articles(
             except Exception as e:
                 logger.error(f"Sentiment analysis failed for url={url}: {e}")
                 continue
-            try:
-                save_article(url, art["headline"], art["source_country"], art["date"], label, confidence)
+            try:  #번역
+              headline_ko = translate_text(art["headline"], "ko")
+            except Exception as e:
+              logger.error(f"Translation failed for url={url}: {e}")
+              headline_ko = art["headline"] #fallback
+            try:  #저장 
+                save_article(url, headline_ko, art["source_country"], art["date"], label, confidence)
             except Exception as e:
                 logger.error(f"DB save failed for url={url}: {e}")
                 continue
             processed.append({
                 "url": url,
-                "headline": art["headline"],
+                "headline": headline_ko,
                 "source_country": art["source_country"],
                 "timestamp": art["date"],
                 "sentiment": {

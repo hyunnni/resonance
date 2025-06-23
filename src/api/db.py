@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Tuple
 
 # --- Config ---
-DB_FILE = os.getenv("DB_FILE", "collected_articles.db")
+DB_FILE = os.getenv("DB_FILE", "resonance.db")
 
 # --- Logging Setup ---
 logger = logging.getLogger(__name__)

@@ -34,7 +34,7 @@ except Exception as e:
     logger.error(f"Failed to load emotion model: {e}")
     raise
 
-def sentiment_score(probs: torch.Tensor) -> Tuple[str, float]:
+def calculate_sentiment_score(probs: torch.Tensor) -> Tuple[str, float]:
     """
     Calculate sentiment label and confidence from model probabilities.
     """
@@ -51,7 +51,7 @@ def sentiment_score(probs: torch.Tensor) -> Tuple[str, float]:
     return "neutral", confidence
 
 @torch.no_grad()
-def headline_emotion(item: Dict) -> Dict:
+def analyze_headline_emotion(item: Dict) -> Dict:
     """
     Run sentiment analysis on a news item dict.
     Returns a dict with headline, timestamp, sourcecountry, and sentiment result.
@@ -62,7 +62,7 @@ def headline_emotion(item: Dict) -> Dict:
         sourcecountry = item["source_country"]
         inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
         probs  = mdl(**inputs).logits.sigmoid()[0]
-        sent_ge, conf_ge = sentiment_score(probs)
+        sent_ge, conf_ge = calculate_sentiment_score(probs)
         if USE_NLI:
             sent_nli, conf_nli, _ = nli_sentiment(text)
             if sent_ge == sent_nli:

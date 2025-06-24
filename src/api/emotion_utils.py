@@ -58,7 +58,7 @@ def analyze_headline_emotion(item: Dict) -> Dict:
     """
     try:
         text = item["text"]
-        ts_iso = item["published"]
+        timestamp = item["published"]
         sourcecountry = item["source_country"]
         inputs = tok(text, return_tensors="pt", truncation=True, max_length=128)
         probs  = mdl(**inputs).logits.sigmoid()[0]
@@ -75,12 +75,12 @@ def analyze_headline_emotion(item: Dict) -> Dict:
                     sent_final, conf_final = sent_nli, round((1-ALPHA)*conf_nli, 3)
         else:
             sent_final, conf_final = sent_ge, conf_ge
-        ts_dt = datetime.strptime(ts_iso, "%Y%m%dT%H%M%SZ")
-        ts_txt = ts_dt.strftime("%Y-%m-%d %H:%M UTC")
-        top3   = torch.topk(probs, 3)
+        # ts_dt = datetime.strptime(ts_iso, "%Y%m%d %H%M%SZ")
+        # ts_txt = ts_dt.strftime("%Y-%m-%d %H:%M UTC")
+        # top3   = torch.topk(probs, 3)
         return {
             "headline": text,
-            "timestamp": ts_txt,
+            "timestamp": timestamp,
             "sourcecountry" : sourcecountry,
             "sentiment": {
                 "label": sent_final,

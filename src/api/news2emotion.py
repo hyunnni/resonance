@@ -4,15 +4,16 @@ import logging
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
-from .fetch_gdelt import fetch_gdelt
+from .worldnews_api import fetch_worldnews
 from .emotion_utils import analyze_headline_emotion
-from .db import is_new_article, save_article, get_latest_articles
+from .db import init_db, is_new_article, save_article, get_latest_articles
 from .translation_api import translate_text
+
+from .config import TIMESPAN_HOURS, NUM_RECORDS, LATEST_EXPORT_COUNT
 
 # --- Config ---
 load_dotenv()
-DB_FILE = os.getenv("DB_FILE", "collected_articles.db")
-DEFAULT_COUNTRIES = ["US","UK","KS","KN","JA","CH","GM","FR","RS","IN","BR"]
+DB_FILE = os.getenv("DB_FILE", "resonance.db")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # --- Logging Setup ---
@@ -20,67 +21,55 @@ logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message
 logger = logging.getLogger(__name__)
 
 def fetch_and_process_articles(
-    timespan: str = "1hours",
-    num_records: int = 250,
-    countries: Optional[List[str]] = None
+    timespan: float = TIMESPAN_HOURS,
+    num_records: int = NUM_RECORDS,
 ) -> Tuple[List[Dict[str, Any]], int]:
-    """
-    Fetch latest news articles, deduplicate, run sentiment analysis, and store in DB.
-    Returns:
-        processed (List[Dict]): List of processed articles with sentiment.
-        total_fetched (int): Total number of articles fetched from GDELT.
-    """
-    if not countries:
-        countries = DEFAULT_COUNTRIES
-    records_per_country = num_records // len(countries)
+
     processed = []
     total_fetched = 0
-    for country in countries:
-        try:
-            country_news = fetch_gdelt(
-                timespan=timespan,
-                num_records=records_per_country,
-                countries=[country]
-            )
-        except Exception as e:
-            logger.error(f"Failed to fetch articles for {country}: {e}")
+    
+    try:
+        news = fetch_worldnews(timespan=timespan, number=num_records)
+    except Exception as e:
+        logger.error(f"Failed to fetch articles: {e}")
+        return [], 0
+        
+    total_fetched += len(news)
+    for art in news:
+        url = art["url"]
+        if not is_new_article(url):
             continue
-        total_fetched += len(country_news)
-        for art in country_news:
-            url = art["url"]
-            if not is_new_article(url):
-                continue
-            try:
-                emotion = analyze_headline_emotion({
-                    "text": art["headline"],
-                    "source_country": art["source_country"],
-                    "published": art["date"]
-                })
-                label = emotion["sentiment"]["label"]
-                confidence = emotion["sentiment"]["confidence"]
-            except Exception as e:
-                logger.error(f"Sentiment analysis failed for url={url}: {e}")
-                continue
-            try:  #번역
-              headline_ko = translate_text(art["headline"], "ko")
-            except Exception as e:
-              logger.error(f"Translation failed for url={url}: {e}")
-              headline_ko = art["headline"] #fallback
-            try:  #저장 
-                save_article(url, headline_ko, art["source_country"], art["date"], label, confidence)
-            except Exception as e:
-                logger.error(f"DB save failed for url={url}: {e}")
-                continue
-            processed.append({
-                "url": url,
-                "headline": headline_ko,
+        try:
+            emotion = analyze_headline_emotion({
+                "text": art["headline"],
                 "source_country": art["source_country"],
-                "timestamp": art["date"],
-                "sentiment": {
-                    "label": label,
-                    "confidence": confidence
-                }
+                "published": art["date"]
             })
+            label = emotion["sentiment"]["label"]
+            confidence = emotion["sentiment"]["confidence"]
+        except Exception as e:
+            logger.error(f"Sentiment analysis failed for url={url}: {e}")
+            continue
+        try:  #번역
+            headline_ko = translate_text(art["headline"], "ko")
+        except Exception as e:
+            logger.error(f"Translation failed for url={url}: {e}")
+            headline_ko = art["headline"] #fallback
+        try:  #저장 
+            save_article(url, headline_ko, art["source_country"], art["date"], label, confidence)
+        except Exception as e:
+            logger.error(f"DB save failed for article={url}: {e}")
+            continue
+        processed.append({
+            "url": url,
+            "headline": headline_ko,
+            "source_country": art["source_country"],
+            "timestamp": art["date"],
+            "sentiment": {
+                "label": label,
+                "confidence": confidence
+            }
+        })
     return processed, total_fetched
 
 def export_latest_articles_with_sentiment_json(filename: str = "latest_articles_with_sentiment.json") -> None:
@@ -88,7 +77,7 @@ def export_latest_articles_with_sentiment_json(filename: str = "latest_articles_
     Export the latest 100 articles (with sentiment) from the DB to a JSON file.
     """
     try:
-        articles = get_latest_articles(min_count=100, hours=1)
+        articles = get_latest_articles(min_count=LATEST_EXPORT_COUNT, hours=TIMESPAN_HOURS)
         data = []
         for url, headline, source_country, timestamp, sentiment_label, sentiment_confidence in articles:
             data.append({
@@ -107,17 +96,6 @@ def export_latest_articles_with_sentiment_json(filename: str = "latest_articles_
     except Exception as e:
         logger.error(f"Failed to export articles to JSON: {e}")
 
-def print_country_counts(processed_news: List[Dict[str, Any]]) -> None:
-    """
-    Print the number of articles per country.
-    """
-    country_counts = {}
-    for row in processed_news:
-        country = row['source_country']
-        country_counts[country] = country_counts.get(country, 0) + 1
-    logger.info("News count by country:")
-    for country, count in sorted(country_counts.items()):
-        logger.info(f"{country}: {count}")
 
 def print_articles(processed_news: List[Dict[str, Any]]) -> None:
     """
@@ -128,15 +106,13 @@ def print_articles(processed_news: List[Dict[str, Any]]) -> None:
                     f"[{row['sentiment']['label']}({row['sentiment']['confidence']})] – {row['headline']}")
 
 def main() -> None:
-    """
-    Orchestrate the full pipeline: fetch, analyze, save, and export articles.
-    """
+    init_db()
     processed_news, total_news = fetch_and_process_articles(
-        timespan="1days", num_records=250, countries=DEFAULT_COUNTRIES
+        timespan= TIMESPAN_HOURS,
+        num_records=NUM_RECORDS
     )
     logger.info(f"Total news articles found: {total_news}")
     logger.info(f"Number of new articles processed: {len(processed_news)}")
-    print_country_counts(processed_news)
     print_articles(processed_news)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"news_sentiment_{timestamp}.json"

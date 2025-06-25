@@ -32,31 +32,32 @@ client = udp_client.SimpleUDPClient(TOUCHDESIGNER_IP, TOUCHDESIGNER_PORT)  # IP,
 # ─────────────────────────────────────────────
 # 3. JSON 갱신 함수 (1시간 주기)
 # ─────────────────────────────────────────────
-def update_json():
+def update_json() -> None:
     print("[osc.py] - 업데이트 시작 : news2emotion.py 실행 중...")
     result = subprocess.run(NEWS2EMOTION_CMD)
     if result.returncode == 0:
         print("[osc.py] - 업데이트 완료 : 뉴스 갱신 완료!")
     else:
-        print("[osc.py] - 업데이트 에러 : news2emotion.py 실행 실패 (exit code = %s)", result.returncode)
+        print(f"[osc.py] - 업데이트 오류 : news2emotion.py 실행 실패 (exit code = {result.returncode})")
+
 
 # ─────────────────────────────────────────────
 # 4. OSC 전송 함수 (10초 주기)
 # ─────────────────────────────────────────────
-def send_random_message():
+def send_random_message() -> None:
     try:
         with open(JSON_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not data:
-            print("[osc.py] - 경고 : json에 데이터가 없습니다 : %s" , JSON_PATH)
+            print(f"[osc.py] - 경고 : JSON 데이터 없음 → {JSON_PATH}")
             return
 
         entry = random.choice(data)
         client.send_message("/msg", json.dumps(entry, ensure_ascii=False))
-        print("[osc.py] - 전송 완료 -> %s", entry['headline'])
+        print(f"[osc.py] - 전송 완료 → {entry['headline']}")
 
     except Exception as e:
-        print("[osc.py] - 에러 : JSON 파싱 오류: %s", e)
+        print(f"[osc.py] - 에러 : JSON 파싱 오류 → {e}")
         return
 
 # ─────────────────────────────────────────────

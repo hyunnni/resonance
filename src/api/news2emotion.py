@@ -80,12 +80,16 @@ def fetch_and_process_articles(
         })
     return processed, total_fetched
 
-def export_latest_articles_with_sentiment_json(filename: str = "latest_articles_with_sentiment.json") -> None:
+def export_latest_articles_with_sentiment_json(
+    filename: str = "latest_articles_with_sentiment.json",
+    export_count: int = LATEST_EXPORT_COUNT,
+    hours: float = TIMESPAN_HOURS
+    ) -> None:
     """
     Export the latest 100 articles (with sentiment) from the DB to a JSON file.
     """
     try:
-        articles = get_latest_articles(min_count=LATEST_EXPORT_COUNT, hours=TIMESPAN_HOURS)
+        articles = get_latest_articles(min_count=export_count, hours=hours)
         data = []
         for url, headline, source_country, timestamp, sentiment_label, sentiment_confidence in articles:
             data.append({
@@ -113,11 +117,15 @@ def print_articles(processed_news: List[Dict[str, Any]]) -> None:
         logger.info(f"[{i:02d}] [{row['timestamp']} @{row['source_country']}] "
                     f"[{row['sentiment']['label']}({row['sentiment']['confidence']})] – {row['headline']}")
 
-def main() -> None:
+def main(
+    timespan: float = TIMESPAN_HOURS,
+    num_records: int = NUM_RECORDS,
+    export_count: int = LATEST_EXPORT_COUNT
+    ) -> None:
     init_db()
     processed_news, total_news = fetch_and_process_articles(
-        timespan= TIMESPAN_HOURS,
-        num_records=NUM_RECORDS
+        timespan= timespan,
+        num_records=num_records
     )
     logger.info(f"Total news articles found: {total_news}")
     logger.info(f"Number of new articles processed: {len(processed_news)}")
@@ -132,7 +140,15 @@ def main() -> None:
         logger.info(f"Number of filtered out articles: {total_news - len(processed_news)}")
     except Exception as e:
         logger.error(f"Failed to save results to {output_file}: {e}")
-    export_latest_articles_with_sentiment_json()
+    export_latest_articles_with_sentiment_json(export_count=export_count, hours=timespan)
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="News2Emotion runner")
+    parser.add_argument("--timespan", type=float, default=TIMESPAN_HOURS, help="시간 범위 (시간 단위)")
+    parser.add_argument("--num-records", type=int, default=NUM_RECORDS, help="기사 개수")
+    parser.add_argument("--export-count", type=int, default=LATEST_EXPORT_COUNT, help="내보내기 기사 수")
+
+    args = parser.parse_args()
+    main(timespan=args.timespan, num_records=args.num_records, export_count=args.export_count)

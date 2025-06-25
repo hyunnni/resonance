@@ -60,29 +60,18 @@ def send_random_message():
         return
 
 # ─────────────────────────────────────────────
-# 6. 스케줄 등록 및 루프
+# 5. 스케줄 등록 및 루프
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-    update_json() # 첫 실행에서 JSON 갱신
+    # update_json() # 첫 실행에서 JSON 갱신
     print("[osc.py] - 최초 실행 : JSON 갱신 시도")
 
     # 10초마다 OSC 전송
     schedule.every(10).seconds.do(send_random_message)
     # 1시간마다 JSON 갱신
-    schedule.every(1).hours.do(update_json)
+    # schedule.every(1).hours.do(update_json)
 
     print("[osc.py] - 스크립트 실행 중 : 10초마다 OSC 전송, 1시간마다 JSON 갱신")
     while True:
         schedule.run_pending()
         time.sleep(1)
-
-# update_json()
-print("[최초 실행] sample.json 갱신 시도")
-schedule.every(10).seconds.do(send_random_message)  # 10초마다 OSC 전송
-schedule.every(1).hours.do(update_json)             # 1시간마다 JSON 업데이트
-
-# 6. 루프
-print("[실행 중] 뉴스 감정 데이터 전송 + 1시간마다 업데이트")
-while True:
-    schedule.run_pending()
-    time.sleep(1)

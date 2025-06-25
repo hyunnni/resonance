@@ -11,3 +11,4 @@ google-cloud-translate==2.0.1
 worldnewsapi==2.2.0
 pytz
 pycountry
+python-osc

@@ -1,11 +1,13 @@
 # Resonance: 뉴스 감정 분석
 
+### [🤓osc.py 가이드](OSC_README.md)
+
 <br>
 
 ## 구조
 
 ```
-  src/
+                                                                                                                                                                src/
   ├── api/
   │   ├── worldnews_api.py       # 뉴스 수집 모듈
   │   ├── news2emotion.py        # 메인 파이프라인 실행
@@ -30,8 +32,10 @@ cd resonance
 pip install -r requirements.txt
 ```
 
-### 2. 환경 변수 설정 
+### 2. 환경 변수 설정
+
 `.env.example`을 침고하여 API 키 및 ID를 입력해주세요.
+
 ```ini
 GOOGLE_APPLICATION_CREDENTIALS=PASTE_YOUR_GOOGLE_APPLICATION_CREDENTIALS(.JSON)
 PROJECT_ID=PASTE_YOUR_PROJECT_ID
@@ -39,28 +43,34 @@ WORLD_NEWS_API_KEY=PASTE_YOUR_API_KEY
 ```
 
 ### 3. 실행 예
+
 ```bash
 python src/api/news2emotion.py --timespan 1.0 --num-records 20
 ```
+
 출력 파일 :
+
 - `latest_articles_with_sentiment.json` : 최근 기사 N개 반환
 
 <br>
 
 ## 🧪 실행 옵션
-| 옵션 이름            | 설명                | 기본값 |
-| ---------------- | ----------------- | --- |
-| `--timespan`     | 최근 몇 시간 이내 뉴스 수집(hour)  | 1.0 |
-| `--num-records`  | 수집할 뉴스 개수         | 100 |
-| `--export-count` | 최근 저장할 JSON 기사 개수 | 100 |
+`src/api/config.py`
 
-예:`python src/api/news2emotion.py --timespan 3.0 --num-records 50`
+| 옵션 이름          | 설명                              | 기본값 |
+| ------------------ | --------------------------------- | ------ |
+| `--timespan`     | 최근 몇 시간 이내 뉴스 수집(hour) | 1.0    |
+| `--num-records`  | 수집할 뉴스 개수                  | 100    |
+| `--export-count` | 최근 저장할 JSON 기사 개수        | 100    |
+
+예:`python src/api/news2emotion.py --timespan 3.0 --num-records 50 --export-count 100`
 
 <br>
 
 ## ⏰ 자동 실행 예
 
 예를 들어, 메인 파이썬 코드 내에서 1시간마다 실행:
+
 ```python
 import subprocess
 
@@ -70,10 +80,12 @@ subprocess.run([
     "--num-records", "5"
 ])
 ```
+
 또는 schedule 라이브러리를 사용해 정기 실행 설정
-<br>
+
 
 ## 📄 출력 예 (JSON)
+
 ```json
 {
   "url": "https://example.com/news/123",
@@ -86,4 +98,5 @@ subprocess.run([
   }
 }
 ```
+
 <br>

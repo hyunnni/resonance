@@ -3,6 +3,7 @@ import json
 import logging
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
+from html import unescape
 from dotenv import load_dotenv
 from .worldnews_api import fetch_worldnews
 from .emotion_utils import analyze_headline_emotion
@@ -19,6 +20,10 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 # --- Logging Setup ---
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
+
+def clear_html_entities(text:str) -> str:
+    """Decode HTML entities such as &quot;, &amp;, &lt; ..."""
+    return unescape(text)
 
 def fetch_and_process_articles(
     timespan: float = TIMESPAN_HOURS,
@@ -37,11 +42,13 @@ def fetch_and_process_articles(
     total_fetched += len(news)
     for art in news:
         url = art["url"]
+        headline_eng = clear_html_entities(art["headline"])
+        print(headline_eng)
         if not is_new_article(url):
             continue
         try:
             emotion = analyze_headline_emotion({
-                "text": art["headline"],
+                "text": headline_eng,
                 "source_country": art["source_country"],
                 "published": art["date"]
             })
@@ -51,10 +58,11 @@ def fetch_and_process_articles(
             logger.error(f"Sentiment analysis failed for url={url}: {e}")
             continue
         try:  #번역
-            headline_ko = translate_text(art["headline"], "ko")
+            headline_ko = translate_text(headline_eng, "ko")
+            headline_ko = clear_html_entities(headline_ko)
         except Exception as e:
             logger.error(f"Translation failed for url={url}: {e}")
-            headline_ko = art["headline"] #fallback
+            headline_ko = headline_eng #fallback
         try:  #저장 
             save_article(url, headline_ko, art["source_country"], art["date"], label, confidence)
         except Exception as e:

@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 import pandas as pd
 from gdeltdoc import GdeltDoc, Filters
-from .db import init_db, get_latest_articles
+from db import init_db, get_latest_articles
 import json
 
 __all__ = ["fetch_gdelt"]

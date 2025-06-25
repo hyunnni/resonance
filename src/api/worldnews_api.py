@@ -21,7 +21,7 @@ newsapi_key = os.getenv("WORLD_NEWS_API_KEY")
 newsapi_configuration = worldnewsapi.Configuration(api_key={'apiKey': newsapi_key})
 newsapi_instance = worldnewsapi.NewsApi(worldnewsapi.ApiClient(newsapi_configuration))
 
-from .config import TIMESPAN_HOURS, NUM_RECORDS
+from config import TIMESPAN_HOURS, NUM_RECORDS
 
 def convert_utc_to_kst(utc_dt) -> str:
     if isinstance(utc_dt, str):

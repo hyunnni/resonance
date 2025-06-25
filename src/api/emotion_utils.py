@@ -2,7 +2,7 @@ import torch
 import logging
 from datetime import datetime
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from .sentiment_nli import nli_sentiment
+from sentiment_nli import nli_sentiment
 from typing import Tuple, Dict
 
 # --- Config ---

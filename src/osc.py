@@ -9,6 +9,7 @@ import schedule
 # ─────────────────────────────────────────────
 # 1. 설정값 (필요시 수정)
 # ─────────────────────────────────────────────
+MAX_CHARS_PER_LINE = 40   # 줄바꿈 기준 글자 수 (원하면 변경)
 TOUCHDESIGNER_IP = "10.210.68.14" #IP
 TOUCHDESIGNER_PORT = 8000   #포트번호
 
@@ -23,6 +24,30 @@ NEWS2EMOTION_CMD = [
     "--num-records", "10",
     "--export-count", "10",
 ]
+
+# ───────────────────────────────────────────────
+# 긴 문자열을 <split> 토큰으로 분할
+# ───────────────────────────────────────────────
+def insert_splits(text: str, chunk: int = MAX_CHARS_PER_LINE) -> str:
+    """
+    chunk 단위(예: 30, 60, 90 …)에서 가장 가까운 공백을 찾아 <split> 토큰 삽입
+    문장 중간에 공백이 없으면 그대로 둡니다
+    """
+    if len(text) <= chunk:
+        return text
+
+    chars = list(text)
+    idx = chunk
+    while idx < len(chars):
+        # 왼쪽으로 10글자, 오른쪽으로 10글자 범위 내에서 가장 먼저 발견되는 공백 탐색
+        window = range(max(idx - 10, 0), min(idx + 10, len(chars)))
+        split_pos = next((i for i in window if chars[i] == " "), None)
+        if split_pos:
+            chars[split_pos] = "<split>"
+            idx = split_pos + chunk
+        else:
+            idx += chunk  # 공백 못 찾으면 그대로 건너뛰기
+    return "".join(chars)
 
 # ─────────────────────────────────────────────
 # 2. TouchDesigner OSC 클라이언트
@@ -53,8 +78,10 @@ def send_random_message() -> None:
             return
 
         entry = random.choice(data)
-        client.send_message("/msg", json.dumps(entry, ensure_ascii=False))
-        print(f"[osc.py] - 전송 완료 → {entry['headline']}")
+        headline_for_td = insert_splits(entry["headline"])  # split
+        payload = {**entry, "headline": headline_for_td}    #split headline 새 dict에 
+        client.send_message("/msg", json.dumps(payload, ensure_ascii=False))
+        print(f"[osc.py] - 전송 완료 → {headline_for_td}")
 
     except Exception as e:
         print(f"[osc.py] - 에러 : JSON 파싱 오류 → {e}")

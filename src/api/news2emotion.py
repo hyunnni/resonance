@@ -5,12 +5,12 @@ from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
 from html import unescape
 from dotenv import load_dotenv
-from .worldnews_api import fetch_worldnews
-from .emotion_utils import analyze_headline_emotion
+from worldnews_api import fetch_worldnews
+from emotion_utils import analyze_headline_emotion
 from db import init_db, is_new_article, save_article, get_latest_articles
 from translation_api import translate_text
 
-from .config import TIMESPAN_HOURS, NUM_RECORDS, LATEST_EXPORT_COUNT
+from config import TIMESPAN_HOURS, NUM_RECORDS, LATEST_EXPORT_COUNT
 
 # --- Config ---
 load_dotenv()

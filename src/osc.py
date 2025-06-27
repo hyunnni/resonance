@@ -20,9 +20,9 @@ JSON_PATH = "latest_articles_with_sentiment.json"
 NEWS2EMOTION_CMD = [
     sys.executable,
     "src/api/news2emotion.py",
-    "--timespan", "3.0",
-    "--num-records", "10",
-    "--export-count", "10",
+    "--timespan", "8.0",
+    "--num-records", "100",
+    "--export-count", "150",
 ]
 
 # ───────────────────────────────────────────────
@@ -91,13 +91,13 @@ def send_random_message() -> None:
 # 5. 스케줄 등록 및 루프
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-    # update_json() # 첫 실행에서 JSON 갱신
+    update_json() # 첫 실행에서 JSON 갱신
     print("[osc.py] - 최초 실행 : JSON 갱신 시도")
 
     # 10초마다 OSC 전송
     schedule.every(10).seconds.do(send_random_message)
     # 1시간마다 JSON 갱신
-    # schedule.every(1).hours.do(update_json)
+    schedule.every(1).hours.do(update_json)
 
     print("[osc.py] - 스크립트 실행 중 : 10초마다 OSC 전송, 1시간마다 JSON 갱신")
     while True:

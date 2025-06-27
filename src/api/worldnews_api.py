@@ -21,7 +21,7 @@ newsapi_key = os.getenv("WORLD_NEWS_API_KEY")
 newsapi_configuration = worldnewsapi.Configuration(api_key={'apiKey': newsapi_key})
 newsapi_instance = worldnewsapi.NewsApi(worldnewsapi.ApiClient(newsapi_configuration))
 
-from config import TIMESPAN_HOURS, NUM_RECORDS
+from .config import TIMESPAN_HOURS, NUM_RECORDS
 
 def convert_utc_to_kst(utc_dt) -> str:
     if isinstance(utc_dt, str):
@@ -76,15 +76,17 @@ def fetch_worldnews(
         print(f"[fetch_worldnews_Response] Recieved {len(response.news)} articles. Total available: {response.available}.")
         
         articles = []
+        min_headline_length = 20  # 최소 헤드라인 길이
         for article in response.news:
-            kst_date = convert_utc_to_kst(article.publish_date)
-            country_name = get_country_name(article.source_country)
-            articles.append({
-                'url': article.url,
-                'source_country': country_name,
-                'headline': article.title,
-                'date': kst_date
-            })
+            if len(article.title) >= min_headline_length:
+                kst_date = convert_utc_to_kst(article.publish_date)
+                country_name = get_country_name(article.source_country)
+                articles.append({
+                    'url': article.url,
+                    'source_country': country_name,
+                    'headline': article.title,
+                    'date': kst_date
+                })
         return articles
     except ApiException as e:
         print(f"Exception when calling NewsAPI -> search_news: {e}")

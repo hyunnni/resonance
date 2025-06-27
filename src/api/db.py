@@ -70,7 +70,7 @@ def is_new_article(url: str) -> bool:
         logger.error(f"Failed to check article url={url}: {e}")
         return False
 
-def get_latest_articles(min_count: int = 100, hours: int = 1):
+def get_latest_articles(min_count: int = 150, hours: int = 1):
     """Get the latest articles (with sentiment) from the DB."""
     try:
         now = datetime.utcnow()

@@ -21,7 +21,9 @@ newsapi_key = os.getenv("WORLD_NEWS_API_KEY")
 newsapi_configuration = worldnewsapi.Configuration(api_key={'apiKey': newsapi_key})
 newsapi_instance = worldnewsapi.NewsApi(worldnewsapi.ApiClient(newsapi_configuration))
 
-from .config import TIMESPAN_HOURS, NUM_RECORDS
+from config import TIMESPAN_HOURS, NUM_RECORDS
+
+MIN_HEADLINE_LENGTH = 25  # 최소 헤드라인 길이 
 
 def convert_utc_to_kst(utc_dt) -> str:
     if isinstance(utc_dt, str):
@@ -55,8 +57,9 @@ def fetch_worldnews(
   
     try:
 
-        now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-        earliest = now - timedelta(hours=timespan)
+        # now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+        earliest = (now - timedelta(hours=timespan)).replace(minute=0, second=0, microsecond=0)
 
         print(f"[fetch_worldnews] earliest_publish_date: {earliest.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"[fetch_worldnews] latest_publish_date: {now.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -76,9 +79,8 @@ def fetch_worldnews(
         print(f"[fetch_worldnews_Response] Recieved {len(response.news)} articles. Total available: {response.available}.")
         
         articles = []
-        min_headline_length = 20  # 최소 헤드라인 길이
         for article in response.news:
-            if len(article.title) >= min_headline_length:
+            if len(article.title) >= MIN_HEADLINE_LENGTH:
                 kst_date = convert_utc_to_kst(article.publish_date)
                 country_name = get_country_name(article.source_country)
                 articles.append({
@@ -87,44 +89,8 @@ def fetch_worldnews(
                     'headline': article.title,
                     'date': kst_date
                 })
+                
         return articles
     except ApiException as e:
         print(f"Exception when calling NewsAPI -> search_news: {e}")
         return []
-
-# now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-# one_hour_ago = now - timedelta(hours = 1)
-
-# print(f"earliest_publish_date: {one_hour_ago.strftime('%Y-%m-%d %H:%M:%S')}")
-# print(f"latest_publish_date: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-
-# NEWS_PER_REQUEST = 10
-
-# # 2025-06-23 18:00:00
-# # latest_publish_date: 2025-06-23 19:00:00
-
-# try:
-#     response = newsapi_instance.search_news(
-#         language='en',
-#         earliest_publish_date = one_hour_ago.strftime('%Y-%m-%d %H:%M:%S'),
-#         latest_publish_date = now.strftime('%Y-%m-%d %H:%M:%S'),
-#         categories= 'politics,sports,business,technology,entertainment,health,science,lifestyle,travel,culture,education,environment,other',
-#         sort="publish-time",
-#         sort_direction="desc",
-#         offset=0,
-#         number=NEWS_PER_REQUEST
-#     )
-    
-#     print(f"Recieved {len(response.news)} articles. Total available: {response.available}.\n")
-    
-#     for article in response.news:
-#         kst_date = convert_utc_to_kst(article.publish_date)
-#         country_name = get_country_name(article.source_country)
-#         print(f"{article.title}")
-#         print(f"Country: {country_name}")
-#         print(f"Time(KST): {kst_date}")
-#         print(f"URL: {article.url}")
-#         print("-" * 60)
-
-# except ApiException as e:
-#     print(f"Exception when calling NewsAPI -> search_news: {e}")
